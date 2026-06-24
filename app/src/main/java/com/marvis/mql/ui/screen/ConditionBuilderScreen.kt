@@ -807,8 +807,8 @@ fun ConditionBuilderScreen(
         }
 
         // ========== 金字塔分批建仓（终极级）==========
-        var pyramidExpanded by remember { mutableStateOf(false) }
         item {
+            var pyramidExpanded by remember { mutableStateOf(false) }
             ExpandableCard("金字塔分批建仓（终极级）", pyramidExpanded, onToggle = { pyramidExpanded = it }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = pyramidEnabled, onCheckedChange = { pyramidEnabled = it })
@@ -847,8 +847,8 @@ fun ConditionBuilderScreen(
         }
 
         // ========== 日内风控熔断（终极级）==========
-        var riskExpanded by remember { mutableStateOf(false) }
         item {
+            var riskExpanded by remember { mutableStateOf(false) }
             ExpandableCard("日内风控熔断（终极级）", riskExpanded, onToggle = { riskExpanded = it }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = riskEnabled, onCheckedChange = { riskEnabled = it })
@@ -878,8 +878,8 @@ fun ConditionBuilderScreen(
         }
 
         // ========== 参数优化（终极级）==========
-        var optimExpanded by remember { mutableStateOf(false) }
         item {
+            var optimExpanded by remember { mutableStateOf(false) }
             ExpandableCard("参数优化配置（终极级）", optimExpanded, onToggle = { optimExpanded = it }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = optimEnabled, onCheckedChange = { optimEnabled = it })
@@ -910,8 +910,8 @@ fun ConditionBuilderScreen(
         }
 
         // ========== 策略组合（终极级）==========
-        var groupExpanded by remember { mutableStateOf(false) }
         item {
+            var groupExpanded by remember { mutableStateOf(false) }
             ExpandableCard("策略组合引擎（终极级）", groupExpanded, onToggle = { groupExpanded = it }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = groupEnabled, onCheckedChange = { groupEnabled = it })
