@@ -1,4 +1,4 @@
-name: Build APK
+name: Build & Release APK
 
 on:
   push:
@@ -27,10 +27,31 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Build Release APK (unsigned)
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: MQLTrader-debug
+          name: MQLStrategyGenerator-debug
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MQLStrategyGenerator-release-unsigned
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0
+          name: v1.0 - 麦语言策略代码生成器
+          files: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          draft: false
+          prerelease: false
