@@ -175,7 +175,7 @@ class MqlParser(private val tokens: List<Token>) {
             return parseFunctionCall()
         }
 
-        when {
+        return when {
             match(TokenType.NUMBER) -> {
                 val token = previous()
                 return NumberLiteral((token.value as Number).toDouble())
