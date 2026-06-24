@@ -71,12 +71,12 @@ class MqlLexer(private val source: String) {
             val ch = peek()
             when {
                 ch == '\n' -> { addToken(TokenType.NEWLINE, "\n"); advance(); line++; column = 1 }
-                ch.isWhitespace() -> advance()
+                ch?.isWhitespace() == true -> advance()
                 ch == '/' && peek(1) == '/' -> skipLineComment()
                 ch == '/' && peek(1) == '*' -> skipBlockComment()
                 ch == '{' -> skipBraceComment()
-                ch.isDigit() || (ch == '.' && peek(1)?.isDigit() == true) -> scanNumber()
-                ch.isLetter() || ch == '_' -> scanIdentifier()
+                ch?.isDigit() == true || (ch == '.' && peek(1)?.isDigit() == true) -> scanNumber()
+                ch?.isLetter() == true || ch == '_' -> scanIdentifier()
                 ch == '"' || ch == '\'' -> scanString(ch)
                 ch == ':' && peek(1) == '=' -> { addToken(TokenType.COLON_ASSIGN, ":="); advance(2) }
                 ch == ':' -> { addToken(TokenType.COLON, ":"); advance() }
