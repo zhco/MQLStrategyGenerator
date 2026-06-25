@@ -153,12 +153,10 @@ fun ReferenceScreen() {
                                     Text("  ${param.name}: ${param.description} (默认: ${param.defaultValue})", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface)
                                 }
                             }
-                            if (func.examples.isNotEmpty()) {
+                            if (func.example.isNotEmpty()) {
                                 Spacer(Modifier.height(2.dp))
                                 Text("示例:", fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                func.examples.forEach { ex ->
-                                    Text("  $ex", fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface)
-                                }
+                                Text("  ${func.example}", fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
