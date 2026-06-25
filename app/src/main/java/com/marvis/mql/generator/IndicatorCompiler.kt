@@ -8,7 +8,7 @@ import com.marvis.mql.model.*
  * 麦语言自定义指标编译器
  * 将手写的麦语言指标代码解析并编译为可交付的指标定义
  */
-class IndicatorCompiler {
+object IndicatorCompiler {
 
     fun compile(sourceCode: String, name: String = "MyIndicator"): CompileResult {
         val errors = mutableListOf<String>()
