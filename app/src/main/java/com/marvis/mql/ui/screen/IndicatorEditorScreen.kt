@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.marvis.mql.compiler.IndicatorCompiler
+import com.marvis.mql.generator.IndicatorCompiler
 import com.marvis.mql.ui.theme.*
 
 /**
