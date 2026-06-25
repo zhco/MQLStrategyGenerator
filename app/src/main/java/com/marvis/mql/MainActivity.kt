@@ -1,8 +1,10 @@
+
 package com.marvis.mql
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,13 +21,19 @@ import androidx.navigation.compose.rememberNavController
 import com.marvis.mql.ui.screen.ConditionBuilderScreen
 import com.marvis.mql.ui.screen.IndicatorEditorScreen
 import com.marvis.mql.ui.screen.OutputScreen
+import com.marvis.mql.ui.screen.ReferenceScreen
+import com.marvis.mql.ui.theme.appDarkColorScheme
+import com.marvis.mql.ui.theme.appLightColorScheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme()) {
-                MainApp()
+            var isDark by remember { mutableStateOf(false) }
+            MaterialTheme(
+                colorScheme = if (isDark) appDarkColorScheme() else appLightColorScheme()
+            ) {
+                MainApp(isDark = isDark, onToggleTheme = { isDark = !isDark })
             }
         }
     }
@@ -33,7 +41,10 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainApp() {
+fun MainApp(
+    isDark: Boolean = false,
+    onToggleTheme: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -45,6 +56,7 @@ fun MainApp() {
     val title = when (currentRoute) {
         "condition_builder" -> "条件构建策略"
         "indicator_editor" -> "自定义指标编辑"
+        "reference" -> "速查手册"
         "output" -> "生成结果"
         else -> "MQL交易脚本生成器"
     }
@@ -58,7 +70,16 @@ fun MainApp() {
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onToggleTheme) {
+                        Icon(
+                            if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = if (isDark) "切换亮色" else "切换暗色",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
             )
         },
         bottomBar = {
@@ -83,6 +104,17 @@ fun MainApp() {
                             if (currentRoute != "indicator_editor")
                                 navController.navigate("indicator_editor") {
                                     popUpTo("indicator_editor") { inclusive = true }
+                                }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.MenuBook, contentDescription = "手册") },
+                        label = { Text("速查手册", fontSize = 11.sp) },
+                        selected = currentRoute == "reference",
+                        onClick = {
+                            if (currentRoute != "reference")
+                                navController.navigate("reference") {
+                                    popUpTo("reference") { inclusive = true }
                                 }
                         }
                     )
@@ -115,6 +147,9 @@ fun MainApp() {
                     }
                 )
             }
+            composable("reference") {
+                ReferenceScreen()
+            }
             composable("output") {
                 OutputScreen(
                     title = outputTitle,
@@ -126,15 +161,3 @@ fun MainApp() {
         }
     }
 }
-
-@Composable
-fun lightColorScheme() = lightColorScheme(
-    primary = com.marvis.mql.ui.theme.Primary,
-    onPrimary = com.marvis.mql.ui.theme.OnPrimary,
-    secondary = com.marvis.mql.ui.theme.Secondary,
-    error = com.marvis.mql.ui.theme.Error,
-    background = com.marvis.mql.ui.theme.Background,
-    surface = com.marvis.mql.ui.theme.Surface,
-    onBackground = com.marvis.mql.ui.theme.OnBackground,
-    onSurface = com.marvis.mql.ui.theme.OnSurface
-)

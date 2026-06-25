@@ -1,3 +1,4 @@
+
 package com.marvis.mql.parser
 
 /**
@@ -23,6 +24,24 @@ class MqlParser(private val tokens: List<Token>) {
         if (isAtEnd()) return null
 
         return when {
+            // 跳过 INPUT 声明行（视为注释）
+            match(TokenType.IDENTIFIER) -> {
+                val name = previous().lexeme.uppercase()
+                if (name == "INPUT") {
+                    // 跳过整个 INPUT 声明: INPUT: N(20,1,100,1);
+                    // 跳过 : 和所有 token 直到 ; 或 NEWLINE
+                    skipUntilSemicolonOrNewline()
+                    null
+                } else if (name in listOf("VAR", "VARIABLE", "GLOBALVARIABLE", "NUMERIC", "STRING", "ARRAY")) {
+                    // 跳过变量声明
+                    skipUntilSemicolonOrNewline()
+                    null
+                } else {
+                    // 退回，正常处理
+                    pos--
+                    parseNormalStatement()
+                }
+            }
             match(TokenType.IF) -> parseIfStatement()
             match(TokenType.BEGIN) -> parseBlockStatement()
             match(TokenType.BUY) -> parseTradeInstruction(TradeType.BUY)
@@ -36,15 +55,39 @@ class MqlParser(private val tokens: List<Token>) {
             match(TokenType.ENTERSHORT) -> parseTradeInstruction(TradeType.ENTERSHORT)
             match(TokenType.EXITSHORT) -> parseTradeInstruction(TradeType.EXITSHORT)
             match(TokenType.LINE_COMMENT) -> null
-            check(TokenType.IDENTIFIER) && checkNext(TokenType.COLON_ASSIGN) ->
-                parseAssignment()
             match(TokenType.NEWLINE) -> null
-            else -> {
-                val expr = parseExpression()
-                skipNewlines()
-                ExpressionStatement(expr)
+            match(TokenType.SEMICOLON) -> null
+            match(TokenType.COLON) -> {
+                // 孤立的冒号，可能是 INPUT：后面的内容，跳过直到语句结束
+                skipUntilSemicolonOrNewline()
+                null
             }
+            else -> parseNormalStatement()
         }
+    }
+
+    private fun parseNormalStatement(): AstNode? {
+        if (isAtEnd()) return null
+
+        // 检查是否是赋值语句: IDENTIFIER := ...
+        if (check(TokenType.IDENTIFIER) && checkNext(TokenType.COLON_ASSIGN)) {
+            return parseAssignment()
+        }
+
+        val expr = parseExpression()
+        skipNewlines()
+        if (match(TokenType.SEMICOLON)) skipNewlines()
+        // 如果表达式后跟着孤立的 COLON，跳过它及后续内容
+        if (match(TokenType.COLON)) skipUntilSemicolonOrNewline()
+        return ExpressionStatement(expr)
+    }
+
+    private fun skipUntilSemicolonOrNewline() {
+        while (!isAtEnd() && !check(TokenType.SEMICOLON) && !check(TokenType.NEWLINE) && !check(TokenType.EOF)) {
+            advance()
+        }
+        if (match(TokenType.SEMICOLON)) skipNewlines()
+        skipNewlines()
     }
 
     private fun parseIfStatement(): IfStatement {
@@ -161,6 +204,9 @@ class MqlParser(private val tokens: List<Token>) {
         if (match(TokenType.MINUS)) {
             return UnaryExpression("-", parseUnary())
         }
+        if (match(TokenType.NOT)) {
+            return UnaryExpression("NOT", parseUnary())
+        }
         return parsePrimary()
     }
 
@@ -170,18 +216,28 @@ class MqlParser(private val tokens: List<Token>) {
             return parseFunctionCall()
         }
 
-        // 标识符后跟 '('
+        // 标识符后跟 '(' → 用户自定义函数调用
         if (check(TokenType.IDENTIFIER) && checkNext(TokenType.LPAREN)) {
             return parseFunctionCall()
+        }
+
+        // CROSS 作为二元运算符（优先级最低）
+        if (match(TokenType.CROSS)) {
+            return parseCrossExpression()
         }
 
         return when {
             match(TokenType.NUMBER) -> {
                 val token = previous()
-                return NumberLiteral((token.value as Number).toDouble())
+                val value = when (token.value) {
+                    is Number -> token.value.toDouble()
+                    is Long -> token.value.toDouble()
+                    else -> token.lexeme.toDoubleOrNull() ?: 0.0
+                }
+                NumberLiteral(value)
             }
             match(TokenType.STRING) -> {
-                return StringLiteral(previous().value as String)
+                StringLiteral(previous().value as? String ?: "")
             }
             match(TokenType.OPEN) -> DataRef("OPEN")
             match(TokenType.HIGH) -> DataRef("HIGH")
@@ -196,7 +252,6 @@ class MqlParser(private val tokens: List<Token>) {
                 consume(TokenType.RPAREN, "期望 ')'")
                 expr
             }
-            match(TokenType.CROSS) -> parseCrossExpression()
             else -> {
                 errors.add("行${peek().line}: 意外的 token '${peek().lexeme}'")
                 advance()
@@ -225,15 +280,23 @@ class MqlParser(private val tokens: List<Token>) {
         return args
     }
 
+    /** 解析 CROSS 表达式，支持 CROSS(A, B) 格式 */
     private fun parseCrossExpression(): CrossExpression {
-        val left = parsePrimary()
-        skipNewlines()
-        if (match(TokenType.COMMA)) {
-            skipNewlines()
-            val right = parsePrimary()
+        if (match(TokenType.LPAREN)) {
+            val left = parseExpression()
+            consume(TokenType.COMMA, "期望 ','")
+            val right = parseExpression()
+            consume(TokenType.RPAREN, "期望 ')'")
             return CrossExpression(left, right)
+        } else {
+            // 备用格式（不太常见）
+            val left = parsePrimary()
+            if (match(TokenType.COMMA)) {
+                val right = parsePrimary()
+                return CrossExpression(left, right)
+            }
+            return CrossExpression(left, NumberLiteral(0.0))
         }
-        return CrossExpression(left, NumberLiteral(0.0))
     }
 
     private fun isFunctionToken(token: Token): Boolean {
@@ -284,6 +347,7 @@ class MqlParser(private val tokens: List<Token>) {
     private fun consume(type: TokenType, message: String): Token {
         if (check(type)) return advance()
         errors.add("行${peek().line}: $message, 实际 '${peek().lexeme}'")
+        // 不回退，尝试继续
         return peek()
     }
 

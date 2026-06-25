@@ -1,3 +1,4 @@
+
 package com.marvis.mql.parser
 
 /**
@@ -24,45 +25,31 @@ class MqlLexer(private val source: String) {
             "CROSS" to TokenType.CROSS
         )
 
-        private val FUNCTION_MAP = mapOf(
-            "O" to TokenType.OPEN, "OPEN" to TokenType.OPEN,
-            "H" to TokenType.HIGH, "HIGH" to TokenType.HIGH,
-            "L" to TokenType.LOW, "LOW" to TokenType.LOW,
-            "C" to TokenType.CLOSE, "CLOSE" to TokenType.CLOSE,
-            "V" to TokenType.VOL, "VOL" to TokenType.VOL,
-            "OPI" to TokenType.OPI, "AMOUNT" to TokenType.AMOUNT,
-            "REF" to TokenType.REF, "HHV" to TokenType.HHV,
-            "LLV" to TokenType.LLV, "HHVBARS" to TokenType.HHVBARS,
-            "LLVBARS" to TokenType.LLVBARS, "BARSLAST" to TokenType.BARSLAST,
-            "COUNT" to TokenType.COUNT, "SUM" to TokenType.SUM,
-            "EVERY" to TokenType.EVERY, "FILTER" to TokenType.FILTER,
-            "MA" to TokenType.MA, "EMA" to TokenType.EMA,
-            "SMA" to TokenType.SMA, "DMA" to TokenType.DMA,
-            "WMA" to TokenType.WMA,
-            "MACD" to TokenType.MACD, "DIFF" to TokenType.MACDDIFF,
-            "DEA" to TokenType.MACDDEA,
-            "KDJ_K" to TokenType.KDJ_K, "KDJ_D" to TokenType.KDJ_D,
-            "KDJ_J" to TokenType.KDJ_J,
-            "RSI" to TokenType.RSI,
-            "BOLL" to TokenType.BOLL_MID, "UB" to TokenType.BOLL_UPPER,
-            "LB" to TokenType.BOLL_LOWER,
-            "SAR" to TokenType.SAR, "ATR" to TokenType.ATR,
-            "PDI" to TokenType.DMI_PDI, "MDI" to TokenType.DMI_MDI,
-            "ADX" to TokenType.DMI_ADX,
-            "STD" to TokenType.STD, "VAR" to TokenType.VAR,
-            "AVEDEV" to TokenType.AVEDEV,
-            "ABS" to TokenType.ABS, "MAX" to TokenType.MAX,
-            "MIN" to TokenType.MIN, "MOD" to TokenType.MOD,
-            "IF" to TokenType.IF_COND, "VALUEWHEN" to TokenType.VALUEWHEN,
-            "BACKSET" to TokenType.BACKSET,
-            "ENTERLONG" to TokenType.ENTERLONG, "EXITLONG" to TokenType.EXITLONG,
-            "ENTERSHORT" to TokenType.ENTERSHORT, "EXITSHORT" to TokenType.EXITSHORT,
-            "MARKETPOSITION" to TokenType.MARKETPOSITION,
-            "BKPRICE" to TokenType.BKPRICE, "SKPRICE" to TokenType.SKPRICE,
-            "BKHIGH" to TokenType.BKHIGH, "SKLOW" to TokenType.SKLOW,
-            "BARPOS" to TokenType.BARPOS, "CURRENTTIME" to TokenType.CURRENTTIME,
-            "CURRENTDATE" to TokenType.CURRENTDATE,
-            "NUMTOSTR" to TokenType.NUMTOSTR, "STRFIND" to TokenType.STRFIND
+        // 函数名列表（不含 IF，IF 由上下文决定是关键字还是函数）
+        private val FUNCTION_NAMES = setOf(
+            "O", "OPEN", "H", "HIGH", "L", "LOW", "C", "CLOSE", "V", "VOL",
+            "OPI", "AMOUNT",
+            "REF", "HHV", "LLV", "HHVBARS", "LLVBARS", "BARSLAST",
+            "COUNT", "SUM", "EVERY", "FILTER",
+            "MA", "EMA", "SMA", "DMA", "WMA",
+            "MACD", "DIFF", "DEA",
+            "KDJ_K", "KDJ_D", "KDJ_J",
+            "RSI",
+            "BOLL", "UB", "LB",
+            "SAR", "ATR",
+            "PDI", "MDI", "ADX",
+            "STD", "VAR", "AVEDEV",
+            "ABS", "MAX", "MIN", "MOD",
+            "VALUEWHEN", "BACKSET",
+            "ENTERLONG", "EXITLONG", "ENTERSHORT", "EXITSHORT",
+            "MARKETPOSITION",
+            "BKPRICE", "SKPRICE", "BKHIGH", "SKLOW",
+            "BARPOS", "CURRENTTIME", "CURRENTDATE",
+            "NUMTOSTR", "STRFIND",
+            "DRAWLINE", "DRAWICON", "DRAWTEXT",
+            "STICKLINE", "VERTLINE", "PLAINTEXT",
+            "DRAWSL", "DRAWNUMBER", "STICK",
+            "ALERT", "PLAYSOUND"
         )
     }
 
@@ -87,6 +74,7 @@ class MqlLexer(private val source: String) {
                 ch == '>' && peek(1) == '=' -> { addToken(TokenType.GTE, ">="); advance(2) }
                 ch == '>' -> { addToken(TokenType.GT, ">"); advance() }
                 ch == '<' && peek(1) == '=' -> { addToken(TokenType.LTE, "<="); advance(2) }
+                ch == '<' && peek(1) == '>' -> { addToken(TokenType.NEQ, "<>"); advance(2) }
                 ch == '<' -> { addToken(TokenType.LT, "<"); advance() }
                 ch == '=' && peek(1) == '=' -> { addToken(TokenType.EQ, "=="); advance(2) }
                 ch == '!' && peek(1) == '=' -> { addToken(TokenType.NEQ, "!="); advance(2) }
@@ -153,7 +141,11 @@ class MqlLexer(private val source: String) {
             advance()
         }
         val numStr = source.substring(start, pos)
-        val value = if (isFloat) numStr.toDouble() else numStr.toLong()
+        val value = try {
+            if (isFloat) numStr.toDouble() else numStr.toLong()
+        } catch (e: NumberFormatException) {
+            0L
+        }
         addToken(TokenType.NUMBER, numStr, value)
     }
 
@@ -164,8 +156,99 @@ class MqlLexer(private val source: String) {
         val upper = text.uppercase()
 
         val type = when {
-            FUNCTION_MAP.containsKey(upper) -> FUNCTION_MAP[upper]!!
-            KEYWORDS.containsKey(upper) -> KEYWORDS[upper]!!
+            // IF 特殊处理：如果是 IF 关键字，看后面是否跟 ( 来决定是函数还是关键字
+            upper == "IF" -> {
+                val savedPos = pos
+                // 跳过空白，看下一个非空白字符是不是 (
+                var lookPos = pos
+                while (lookPos < source.length && source[lookPos].isWhitespace()) lookPos++
+                if (lookPos < source.length && source[lookPos] == '(') TokenType.IF_COND
+                else TokenType.IF
+            }
+            // CROSS 不是函数名，是关键字
+            upper == "CROSS" -> TokenType.CROSS
+            // 其他函数名
+            upper in FUNCTION_NAMES -> {
+                val lookPos = pos
+                var lp = pos
+                while (lp < source.length && source[lp].isWhitespace()) lp++
+                // 数据引用（O/H/L/C/V 等）不需要括号也可以作为函数
+                when (upper) {
+                    "O", "OPEN" -> TokenType.OPEN
+                    "H", "HIGH" -> TokenType.HIGH
+                    "L", "LOW" -> TokenType.LOW
+                    "C", "CLOSE" -> TokenType.CLOSE
+                    "V", "VOL" -> TokenType.VOL
+                    "OPI" -> TokenType.OPI
+                    "AMOUNT" -> TokenType.AMOUNT
+                    "MA" -> TokenType.MA
+                    "EMA" -> TokenType.EMA
+                    "SMA" -> TokenType.SMA
+                    "DMA" -> TokenType.DMA
+                    "WMA" -> TokenType.WMA
+                    "MACD" -> TokenType.MACD
+                    "DIFF" -> TokenType.MACDDIFF
+                    "DEA" -> TokenType.MACDDEA
+                    "KDJ_K" -> TokenType.KDJ_K
+                    "KDJ_D" -> TokenType.KDJ_D
+                    "KDJ_J" -> TokenType.KDJ_J
+                    "RSI" -> TokenType.RSI
+                    "BOLL" -> TokenType.BOLL_MID
+                    "UB" -> TokenType.BOLL_UPPER
+                    "LB" -> TokenType.BOLL_LOWER
+                    "SAR" -> TokenType.SAR
+                    "ATR" -> TokenType.ATR
+                    "PDI" -> TokenType.DMI_PDI
+                    "MDI" -> TokenType.DMI_MDI
+                    "ADX" -> TokenType.DMI_ADX
+                    "REF" -> TokenType.REF
+                    "HHV" -> TokenType.HHV
+                    "LLV" -> TokenType.LLV
+                    "HHVBARS" -> TokenType.HHVBARS
+                    "LLVBARS" -> TokenType.LLVBARS
+                    "BARSLAST" -> TokenType.BARSLAST
+                    "COUNT" -> TokenType.COUNT
+                    "SUM" -> TokenType.SUM
+                    "EVERY" -> TokenType.EVERY
+                    "FILTER" -> TokenType.FILTER
+                    "STD" -> TokenType.STD
+                    "VAR" -> TokenType.VAR
+                    "AVEDEV" -> TokenType.AVEDEV
+                    "ABS" -> TokenType.ABS
+                    "MAX" -> TokenType.MAX
+                    "MIN" -> TokenType.MIN
+                    "MOD" -> TokenType.MOD
+                    "VALUEWHEN" -> TokenType.VALUEWHEN
+                    "BACKSET" -> TokenType.BACKSET
+                    "ENTERLONG" -> TokenType.ENTERLONG
+                    "EXITLONG" -> TokenType.EXITLONG
+                    "ENTERSHORT" -> TokenType.ENTERSHORT
+                    "EXITSHORT" -> TokenType.EXITSHORT
+                    "MARKETPOSITION" -> TokenType.MARKETPOSITION
+                    "BKPRICE" -> TokenType.BKPRICE
+                    "SKPRICE" -> TokenType.SKPRICE
+                    "BKHIGH" -> TokenType.BKHIGH
+                    "SKLOW" -> TokenType.SKLOW
+                    "BARPOS" -> TokenType.BARPOS
+                    "CURRENTTIME" -> TokenType.CURRENTTIME
+                    "CURRENTDATE" -> TokenType.CURRENTDATE
+                    "NUMTOSTR" -> TokenType.NUMTOSTR
+                    "STRFIND" -> TokenType.STRFIND
+                    "DRAWLINE" -> TokenType.DRAWLINE
+                    "DRAWICON" -> TokenType.DRAWICON
+                    "DRAWTEXT" -> TokenType.DRAWTEXT
+                    "STICKLINE" -> TokenType.STICKLINE
+                    "VERTLINE" -> TokenType.VERTLINE
+                    "PLAINTEXT" -> TokenType.PLAINTEXT
+                    "DRAWSL" -> TokenType.DRAWSL
+                    "DRAWNUMBER" -> TokenType.DRAWNUMBER
+                    "STICK" -> TokenType.STICK
+                    "ALERT" -> TokenType.ALERT
+                    "PLAYSOUND" -> TokenType.PLAYSOUND
+                    else -> TokenType.IDENTIFIER
+                }
+            }
+            upper in KEYWORDS -> KEYWORDS[upper]!!
             else -> TokenType.IDENTIFIER
         }
         addToken(type, text)
