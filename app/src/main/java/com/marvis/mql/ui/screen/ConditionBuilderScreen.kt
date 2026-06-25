@@ -298,7 +298,7 @@ fun ConditionBuilderScreen(
                                     selectedContainerColor = Color(0xFFFF6F00).copy(alpha = 0.15f),
                                     selectedLabelColor = Color(0xFFFF6F00)
                                 ),
-                                border = if (isSel) BorderStroke(1.dp, Color(0xFFFF6F00)) else FilterChipDefaults.filterChipBorder(true, true, MaterialTheme.colorScheme.outlineVariant)
+                                border = if (isSel) BorderStroke(1.dp, Color(0xFFFF6F00)) else FilterChipDefaults.filterChipBorder(true, true)
                             )
                         }
                     }
