@@ -246,8 +246,8 @@ fun IndicatorEditorScreen(
                 Button(onClick = {
                     val result = IndicatorCompiler.compile(sourceCode)
                     if (result.errors.isEmpty()) {
-                        onCompile(result.name, result.code)
-                        compileResult = result.code
+                        onCompile(result.generatedIndicator?.name ?: "MyIndicator", result.sourceCode)
+                        compileResult = result.sourceCode
                     } else {
                         errors = result.errors
                         compileResult = null
