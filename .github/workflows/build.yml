@@ -29,12 +29,12 @@ jobs:
           gradle-version: '8.5'
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon --info
         env:
           GRADLE_OPTS: -Xmx4096m
 
       - name: Build Release APK (unsigned)
-        run: gradle assembleRelease --no-daemon
+        run: gradle assembleRelease --no-daemon --info
         env:
           GRADLE_OPTS: -Xmx4096m
 
